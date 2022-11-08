@@ -1,0 +1,483 @@
+rulesetVersion: v3
+kind: flagfettiRules
+metadata:
+  id: ecuador-fcd
+spec:
+  contractFields:
+    - ocid: .releases.ocid
+    - date:
+        - .releases.date
+    - procurementMethod: .releases.tender.procurementMethod
+    - procurementMethodDetails: .releases.tender.procurementMethodDetails
+    - startDate:
+        - .releases.tender.tenderPeriod.startDate
+        - .releases.contracts.startDate
+    - title:
+        - .releases.tender.lots.title
+        - .releases.relatedProcesses.title
+        - .releases.tender.title
+    - amount:
+        - .releases.awards.value.amount
+        - .releases.awards.correctedValue.amount
+        - .releases.contracts.value.amount
+        - .releases.tender.value.amount
+    - parties: .releases.parties[*:filterMulti(roles,buyer,supplier)]
+    - supplier_ids: .releases.parties[*:filter(roles,supplier)].id
+    - buyer_ids: .releases.parties[*:filter(roles,buyer)].id
+    - buyer_names: .releases.parties[*:filter(roles,buyer)].name
+    - awards: .releases.awards
+  categories:
+    - id: comp
+      name: Competitividad
+      description: Todo aquello que tenga que ver con competitividad.
+    - id: trans
+      name: Transparencia
+      description: Todo aquello que tenga que ver con transparencia.
+    - id: temp
+      name: Temporalidad
+      description: Todo aquello que tenga que ver con temporalidad.
+    - id: traz
+      name: Trazabilidad
+      description: Todo aquello que tenga que ver con trazabilidad.
+  partyFields:
+    partyIdentifier: "description.parties.name.keyword"
+    partyExtra:
+        - "description.parties.id"
+        - "description.parties.name"
+        - "description.parties.address.locality"
+        - "description.parties.address.region"
+        - "description.parties.roles"
+
+  partySummaries:
+    - contract_count:
+        type: cardinality
+        field: "description.ocid.keyword"
+    - countract_amount:
+        type: sum
+        field: "description.amount"
+    - count_suppliers:
+        type: cardinality
+        field: "description.awards.suppliers.name.keyword"
+    - count_tender-single-bidder-only:
+        type: terms-first-bucket
+        include:
+            - 0
+        field: results.tender-single-bidder-only.result
+    - count_short-awards-procedures:
+        type: terms-first-bucket
+        include:
+            - 0
+        field: "results.short-awards-procedures.result"
+    - count_one-few-bidders-win-disproportionate-number-contracts-same-type:
+        type: terms-first-bucket
+        include:
+            - 0
+        field: "results.one-few-bidders-win-disproportionate-number-contracts-same-type.result"
+
+  contractRules:
+    - tender-single-bidder-only:
+        category: comp
+        description: La licitación contó con un solo oferente.
+        module: tender-single-bidder-only
+        parameters:
+            value: .releases.tender.numberOfTenderers
+            conditions:
+                - lte: 1
+        default: 1
+    - key-fields-traceability:
+        category: traz
+        description: Campos fundamentales para la trazabilidad.
+        module: key-fields
+        parameters:
+            resultType: boolean
+            values:
+                - .releases.planning.budget.id
+                - .releases.parties.name
+                - .releases.parties.id
+                - .releases.parties.identifier.id
+                - .releases.tender.id
+                - .releases.contracts.id
+        default: 1
+    - planning-sections:
+        category: trans
+        description: Contiene algún valor en la sección de planeación de OCDS.
+        module: key-fields
+        parameters:
+            resultType: boolean
+            values:
+                - .releases.planning
+        default: 1
+    - key-fields-temporality:
+        category: temp
+        description: Existe una fecha válida en los campos de publicación de la oportunidad, adjudicación de contrato, inicio de contrato y fin de contrato.
+        module: key-fields
+        parameters:
+            resultType: ratio
+            values:
+                - .releases.tender.tenderPeriod.startDate
+                - .releases.tender.awardPeriod.startDate
+                - .releases.tender.tenderPeriod.endDate
+                - .releases.tender.awardPeriod.endDate
+                - .releases.contracts.period.startDate
+                - .releases.contracts.period.endDate
+                - .releases.contracts.dateSigned
+                - .releases.awards.contractPeriod.startDate
+                - .releases.awards.contractPeriod.endDate
+                - .releases.awards.date
+                - .releases.auctions.stages.rounds.period.startDate
+                - .releases.auctions.stages.rounds.period.endDate
+                - .releases.date
+        default: 1
+    - price-awarded-bidder-below-reference-budget:
+        category: comp
+        description: Precio de oferente adjudicado muy por debajo del presupuesto de referencia.
+        module: price-awarded-bidder-below-reference-budget
+        parameters:
+            value: .releases.awards.value.amount
+            referenceValue: .releases.planning.budget.amount.amount
+            conditions:
+                - gte: 50
+        default: 1
+    - wide-disparity-bid-prices:
+        category: comp
+        description: Gran disparidad en los precios de las ofertas.
+        module: wide-disparity-bid-prices
+        parameters:
+            values: .releases.auctions.stages.bids.value.amount
+            conditions:
+                - gte: 1.5
+        default: 1
+    - bids-exact-percentage-apart:
+        category: traz
+        description: Las ofertas tienen un porcentaje exacto de diferencia.
+        module: bids-exact-percentage-apart
+        parameters:
+            values: .releases.auctions.stages.bids.value.amount
+            conditions:
+                - exactPercentageDifference: true
+        default: 1
+    - winning-bid-round-numbers:
+        category: traz
+        description: La oferta ganadora tiene números redondos.
+        module: winning-bid-round-numbers
+        parameters:
+            value: .releases.auctions.winningBids.value.amount
+            amountOfZeros: 4
+        default: 1
+    - late-bidder-winning-bidder:
+        category: comp
+        description: El último licitador es el ganador.
+        module: late-bidder-winning-bidder
+        parameters:
+            bids: .releases.auctions.stages.bids.date
+            winningBid: .releases.auctions.winningBids.date
+        default: 1
+    - supplier-address-same-project-officials:
+        category: traz
+        description: La dirección del proveedor (o licitador) es la misma que la de los responsables del proyecto.
+        module: supplier-address-same-project-officials
+        parameters:
+            buyerAddress: .releases.parties[*:filter(roles,buyer)].address
+            supplierAddress: .releases.parties[*:filter(roles,supplier)].address
+        default: 1
+    - large-difference-between-award-value-final-contract:
+        category: traz
+        description: Gran diferencia entre el valor de adjudicación y el importe final del contrato.
+        module: large-difference-between-award-value-final-contract
+        parameters:
+            value: .releases.awards.value.amount
+            referenceValue: .releases.contracts.value.amount
+            conditions:
+                - gte: 50
+        default: 1
+    - unanswered-bidder-questions:
+        category: trans
+        description: Preguntas del licitador sin respuesta.
+        module: unanswered-bidder-questions
+        parameters:
+            enquiries: .releases.tender.enquiries
+        default: 1
+    - understanding-title:
+        category: traz
+        description: El título del contrato es descriptivo y claro, no consiste solamente de códigos o abreviaciones.
+        module: understanding-title
+        parameters:
+            values:
+                - .releases.relatedProcesses.title
+                - .releases.tender.lots.title
+                - .releases.tender.description
+                - .releases.awards.description
+        default: 1
+    - information-matches:
+        category: traz
+        description: La información del oferente 1 coincide con la información del oferente 2.
+        module: information-matches
+        parameters:
+            values: .releases.parties[*:filter(roles,tenderer)].address
+            properties:
+                - streetAddress
+                - faxnumber
+                - contactPoint
+        default: 1
+    - supplier-address-not-fully-specified:
+        category: traz
+        description: La dirección del proveedor no se especifica de manera completa.
+        module: supplier-address-not-fully-specified
+        parameters:
+            value: .releases.parties[*:filter(roles,supplier)].address
+        default: 1
+    - companies-domiciled-tax-havens:
+        category: comp
+        description: El proveedor está basado en uno de los países con el Financial Secrecy Index superior al del país en cuestión.
+        module: companies-domiciled-tax-havens
+        parameters:
+            values: .releases.parties[*:filter(roles,supplier)].address.countryName
+            comparisonValues:
+                #- PERU
+                #- COLOMBIA
+                #- ESPAÑA
+                #- ESTADOS UNIDOS
+                #- MEXICO
+                #- URUGUAY
+                #- CHINA
+                #- ITALIA
+                #- CHILE
+                #- RUSIA
+                - ANTILLAS HOLANDESAS
+                #- JAPON
+                #- PAÍSES BAJOS
+                - VENEZUELA
+        default: 1
+    - presence-suspicious-dates:
+        category: temp
+        description: La fecha de firma o inicio del contrato coincide con un feriado oficial o día no laborable.
+        module: presence-suspicious-dates
+        parameters:
+            values:
+                - .releases.awards.contractPeriod.startDate
+                - .releases.contracts.dateSigned
+                - .releases.tender.tenderPeriod.startDate
+                - .releases.tender.awardPeriod.startDate
+                - .releases.auctions.stages.rounds.period.startDate
+            comparisonValues: # https://www.timeanddate.com/holidays/ecuador/
+                - "2015-01-01" # 2015
+                - "2015-01-02"
+                - "2015-01-03"
+                - "2015-01-04"
+                - "2015-02-16"
+                - "2015-02-17"
+                - "2015-04-03"
+                - "2015-05-01"
+                - "2015-08-10"
+                - "2015-10-09"
+                - "2015-11-02"
+                - "2015-11-03"
+                - "2015-12-25"
+                - "2016-01-01" # 2016
+                - "2016-02-08"
+                - "2016-02-09"
+                - "2016-03-25"
+                - "2016-05-01"
+                - "2016-05-27"
+                - "2016-08-10"
+                - "2016-10-09"
+                - "2016-11-02"
+                - "2016-11-03"
+                - "2016-12-25"
+                - "2017-01-01" # 2017
+                - "2017-01-02"
+                - "2017-02-27"
+                - "2017-02-28"
+                - "2017-04-14"
+                - "2017-05-01"
+                - "2017-05-26"
+                - "2017-08-10"
+                - "2017-10-09"
+                - "2017-11-02"
+                - "2017-11-03"
+                - "2017-12-25"
+                - "2018-01-01" # 2018
+                - "2018-02-12"
+                - "2018-02-13"
+                - "2018-03-30"
+                - "2018-04-30"
+                - "2018-05-01"
+                - "2018-05-25"
+                - "2018-08-10"
+                - "2018-10-12"
+                - "2018-11-02"
+                - "2018-11-03"
+                - "2018-12-25"
+                - "2018-12-31"
+                - "2019-01-01" # 2019
+                - "2019-03-04"
+                - "2019-03-05"
+                - "2019-04-19"
+                - "2019-05-01"
+                - "2019-05-03"
+                - "2019-08-09"
+                - "2019-08-10"
+                - "2019-10-11"
+                - "2019-11-01"
+                - "2019-11-02"
+                - "2019-11-03"
+                - "2019-11-04"
+                - "2019-12-25"
+                - "2019-12-30"
+                - "2019-12-31"
+                - "2020-01-01" # 2020
+                - "2020-02-24"
+                - "2020-02-25"
+                - "2020-04-10"
+                - "2020-05-01"
+                - "2020-05-25"
+                - "2020-08-10"
+                - "2020-10-09"
+                - "2020-11-02"
+                - "2020-11-03"
+                - "2020-12-25"
+                - "2021-01-01" # 2021
+                - "2021-02-15"
+                - "2021-02-16"
+                - "2021-04-02"
+                - "2021-04-30"
+                - "2021-05-01"
+                - "2021-05-24"
+                - "2021-08-09"
+                - "2021-10-08"
+                - "2021-10-09"
+                - "2021-11-01"
+                - "2021-11-02"
+                - "2021-12-24"
+                - "2021-12-25"
+                - "2021-12-31"
+                - "2022-01-01" # 2022
+                - "2022-02-28"
+                - "2022-03-01"
+                - "2022-04-15"
+                - "2022-05-01"
+                - "2022-05-02"
+                - "2022-05-23"
+                - "2022-08-12"
+                - "2022-10-09"
+                - "2022-11-03"
+                - "2022-11-04"
+                - "2022-12-25"
+            options:
+                - includeSundays: true
+        default: 1
+    - duration-questioning-stage:
+        category: temp
+        description: Tiempo de duración de la etapa de preguntas.
+        module: duration-questioning-stage
+        parameters:
+            duration: .releases.tender.enquiryPeriod.durationInDays
+            procurementMethod: .releases.tender.procurementMethodDetails
+            date: .releases.awards.date
+            amount: .releases.awards.value.amount
+            budgetByYear:
+                - 2015: 36317117010.35
+                - 2016: 29835098320.79
+                - 2017: 36818127659.65
+                - 2018: 34853371653.72
+                - 2019: 35529394461.72
+                - 2020: 35498420637.02
+                - 2021: 32080363387.48
+                - 2022: 33899734759.85
+        default: 1
+    - bidders-who-bid-and-dont-win:
+        category: comp
+        description: Uno de los oferentes se encuentra entre un top de oferentes que se presentan y no ganan.
+        module: bidders-who-bid-and-dont-win
+        parameters:
+            parties: .releases.parties[*:filterNegative(roles,tenderer,supplier)]
+            date: .releases.date
+        default: 1
+        additionalData:
+            - id: ecuadorTop100
+              path: ecuadorTop100.json
+              type: json
+    - short-awards-procedures:
+        category: temp
+        description: Procesos con plazo corto para la adjudicación.
+        module: date-difference
+        parameters:
+            startDate: .releases.tender.awardPeriod.startDate
+            endDate: .releases.awards.date
+            conditions:
+                - lt: 3
+  partyRules:
+    - duplicated-id:
+        category: traz
+        description: Un mismo licitador tiene más de un número de identificación asignado con el mismo nombre.
+        module: duplicated-id
+        parameters:
+            conditions:
+                - gte: 2
+        default: 1
+        additionalData:
+            - id: preprocessed
+              path: preprocess-duplicated-id.json
+              type: json
+    - network:
+        category: network
+        description: Confiabilidad.
+        module: network
+        parameters:
+            field: summary.total_score
+            contrapartiesField: description.parties.id.keyword
+        default: 1
+    - title-contract-repeated:
+        category: traz
+        description: El nombre del contrato se repite en un 10% de los casos. No aplica si hay diez o menos contratos al año.
+        module: yearly-repeated-value
+        parameters:
+            field: description.title.keyword
+            conditions:
+                - gte: 0.1
+                - min_count: 10
+        default: 1
+    - above-average-number-contracts:
+        category: comp
+        description: Una dependencia realiza el 30% de sus contratos del año en un mismo día. No aplica si hay diez o menos contratos al año.
+        module: yearly-repeated-value
+        parameters:
+            field: description.date
+            conditions:
+                - gte: 0.3
+                - min_count: 10
+        default: 1
+    - contract-amount-repeated:
+        category: traz
+        description: El monto del contrato se repite en un 10% de los casos. No aplica si hay diez o menos contratos al año.
+        module: yearly-repeated-value
+        parameters:
+            field: description.amount
+            conditions:
+                - gte: 0.1
+                - min_count: 10
+        default: 1
+    - one-few-bidders-win-disproportionate-number-contracts-same-type:
+        category: comp
+        description: Uno o pocos licitadores obtienen un número desproporcionado de contratos del mismo tipo. Usar métrica HHI.
+        module: one-few-bidders-win-disproportionate-number-contracts-same-type
+        parameters:
+            field: description.items.id.keyword
+            conditions:
+                - gte: 4000
+                - min_item_contract_count: 5
+        default: 1
+        additionalData:
+            - id: preprocessed
+              path: preprocess-one-few-bidders-win-disproportionate-number-contracts-same-type.json
+              type: json
+
+    - contract_count:
+        category: contract-count
+        description: Cantidad de contratos en los que participó
+        summmarization: ignore
+        module: yearly-repeated-value
+        parameters:
+            field: description.ocid.keyword
+            conditions:
+                - contract_count: true
