@@ -25,7 +25,12 @@ class PresenceSuspiciousDatesEvaluationModule extends EvaluationModule {
         // process.exit()
         if(dates.length > 0 && this.suspiciousDates.length > 0) {
             if (dates.map) {
-                if (dates.map( d => this.checkDate(d[0]) ).indexOf(false) > -1) {
+                if (dates.map( d =>  { if(d) { 
+                    if (Array.isArray(d)) {
+                        d=d[0];
+                    }
+                    return this.checkDate(d) 
+                } else { return true } }  ).indexOf(false) > -1) {
                     result.fail();
 
                 }
@@ -41,6 +46,7 @@ class PresenceSuspiciousDatesEvaluationModule extends EvaluationModule {
     checkDate(d) {
         if(d) {
             let dateDay = d.split('T')[0];
+            // console.log(d,dateDay,this.suspiciousDates)
             if( this.suspiciousDates.indexOf(dateDay) >= 0 ) return false;
             else {
                 if(PresenceSuspiciousDatesEvaluationModule.optionsObj.hasOwnProperty('includeSundays') && PresenceSuspiciousDatesEvaluationModule.optionsObj.includeSundays) {

@@ -129,6 +129,30 @@ Command line parameters:
 --latency-offset -l The time to wait for all evaluation promises to return before sending party summaries in stdout in CSV output mode
 ```
 
+## Convert contract flags to csv
+
+Syntax:
+```pv contractFlags.jsonl | node flagfetti-contractflags-tocsv.json > out.csv```
+
+### Convert all contract flags from a folder in parallel
+
+```
+parallel -j5 --bar cat '{} | node flagfetti-contractflags-tocsv.js  > /output/path/{/.}.csv' ::: `ls /path/to/contract/flags/*`
+
+```
+
+## Partys ranking based on party flags
+
+Syntax:
+```node flagfetti-rankings-generator.js -e https://user:pass@elastic:9200 -s [party_flag_index] -d /path/to/files/filenamePrefix```
+
+Command line parameters:
+```
+--elastic-uri -e String elasticsearch instance uri
+--source -s String Source index for the contract flags
+--destination -d String Destination index for the party flags
+```
+
 ## Custom modules
 
 A module is a javascript class in a file that lives in the modules/contract or modules/party folder.

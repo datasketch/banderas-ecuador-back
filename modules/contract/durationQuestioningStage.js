@@ -24,8 +24,9 @@ class DurationQuestioningStageEvaluationModule extends EvaluationModule {
         result.pass();
 
         if(duration && date && procurementMethod && amount) {
-            let year = date.split('-')[0];
-            if(this.durationTooShort(duration, procurementMethod, year, amount)) result.fail();
+            let year = parseInt(date.split('-')[0]);
+            let month = parseInt(date.split('-')[1]);
+            if(this.durationTooShort(duration, procurementMethod, year, month, amount)) result.fail();
         }
         return result;
     }
@@ -38,37 +39,46 @@ class DurationQuestioningStageEvaluationModule extends EvaluationModule {
         }
         return budgets;
     }
-    durationTooShort(duration, procurementMethod, year, amount) {
+    durationTooShort(duration, procurementMethod, year, month, amount) {
         let coefficient = amount / DurationQuestioningStageEvaluationModule.budgetByYear[year];
 
-        switch(procurementMethod) {
-            case 'Lista corta':
-            case 'Concurso publico':
-                if( coefficient > 0.000002 && coefficient < 0.000007 && duration < 3  ) return true;
-                if( coefficient > 0.000007 && coefficient < 0.00003  && duration < 5  ) return true;
-                if( coefficient > 0.00003  && coefficient < 0.0002   && duration < 7  ) return true;
-                if( coefficient > 0.0002                             && duration < 10 ) return true;
-                break;
-            case 'Cotización':
-                if( coefficient > 0.000002 && coefficient < 0.000007 && duration < 3  ) return true;
-                if( coefficient > 0.000007 && coefficient < 0.00003  && duration < 5  ) return true;
-                break;
-            case 'Licitación':
-                if( coefficient > 0.000015 && coefficient < 0.0002   && duration < 5  ) return true;
-                if( coefficient > 0.0002                             && duration < 10 ) return true;
-                break;
-            case 'Subasta Inversa Electrónica':
-                if( coefficient > 0.0000002 && coefficient < 0.000002 && duration < 2   ) return true;
-                if( coefficient > 0.000002  && coefficient < 0.000007 && duration < 3   ) return true;
-                if( coefficient > 0.000007  && coefficient < 0.00003  && duration < 5   ) return true;
-                if( coefficient > 0.00003   && coefficient < 0.0002   && duration < 7   ) return true;
-                if( coefficient > 0.0002                              && duration < 10  ) return true;
-                break;
-            case 'Menor Cuantía':
-                if( coefficient < 0.000002 && duration < 2  ) return true;
-                break;
-            default:
-                return false;
+        if( (year > 2023) || ( year == 2023 && month >= 8 ) ) {
+            if( coefficient > 0.0000002 && coefficient < 0.000002 && duration < 2 ) return true;
+            if( coefficient > 0.000002  && coefficient < 0.000007 && duration < 3 ) return true;
+            if( coefficient > 0.000007  && coefficient < 0.00003  && duration < 4 ) return true;
+            if( coefficient > 0.00003   && coefficient < 0.0002   && duration < 5 ) return true;
+            if( coefficient > 0.0002                              && duration < 6 ) return true;
+        }
+        else {
+            switch(procurementMethod) {
+                case 'Lista corta':
+                case 'Concurso publico':
+                    if( coefficient > 0.000002 && coefficient < 0.000007 && duration < 3  ) return true;
+                    if( coefficient > 0.000007 && coefficient < 0.00003  && duration < 5  ) return true;
+                    if( coefficient > 0.00003  && coefficient < 0.0002   && duration < 7  ) return true;
+                    if( coefficient > 0.0002                             && duration < 10 ) return true;
+                    break;
+                case 'Cotización':
+                    if( coefficient > 0.000002 && coefficient < 0.000007 && duration < 3  ) return true;
+                    if( coefficient > 0.000007 && coefficient < 0.00003  && duration < 5  ) return true;
+                    break;
+                case 'Licitación':
+                    if( coefficient > 0.000015 && coefficient < 0.0002   && duration < 5  ) return true;
+                    if( coefficient > 0.0002                             && duration < 10 ) return true;
+                    break;
+                case 'Subasta Inversa Electrónica':
+                    if( coefficient > 0.0000002 && coefficient < 0.000002 && duration < 2   ) return true;
+                    if( coefficient > 0.000002  && coefficient < 0.000007 && duration < 3   ) return true;
+                    if( coefficient > 0.000007  && coefficient < 0.00003  && duration < 5   ) return true;
+                    if( coefficient > 0.00003   && coefficient < 0.0002   && duration < 7   ) return true;
+                    if( coefficient > 0.0002                              && duration < 10  ) return true;
+                    break;
+                case 'Menor Cuantía':
+                    if( coefficient < 0.000002 && duration < 2  ) return true;
+                    break;
+                default:
+                    return false;
+            }
         }
 
         return false;

@@ -22,7 +22,7 @@ class KeyFieldsEvaluationModule extends EvaluationModule {
                 result.fail();
                 failedFields++;
             }
-            else if(param.length > 0) {
+            else if(param.length > 0 && typeof(param)!="string") {
                 let failed = false;
                 param.map( p => {
                     if(!p || p == "null") {

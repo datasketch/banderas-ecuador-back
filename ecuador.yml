@@ -6,6 +6,8 @@ spec:
   contractFields:
     - ocid: .releases.ocid
     - date:
+        - .releases.tender.tenderPeriod.startDate
+        - .releases.contracts.startDate
         - .releases.date
     - procurementMethod: .releases.tender.procurementMethod
     - procurementMethodDetails: .releases.tender.procurementMethodDetails
@@ -16,6 +18,8 @@ spec:
         - .releases.tender.lots.title
         - .releases.relatedProcesses.title
         - .releases.tender.title
+    - description:
+        - .releases.tender.description
     - amount:
         - .releases.awards.value.amount
         - .releases.awards.correctedValue.amount
@@ -171,6 +175,8 @@ spec:
         parameters:
             bids: .releases.auctions.stages.bids.date
             winningBid: .releases.auctions.winningBids.date
+            date: .releases.date
+            procurementMethod: .releases.tender.procurementMethodDetails
         default: 1
     - supplier-address-same-project-officials:
         category: traz
@@ -203,10 +209,7 @@ spec:
         module: understanding-title
         parameters:
             values:
-                - .releases.relatedProcesses.title
-                - .releases.tender.lots.title
                 - .releases.tender.description
-                - .releases.awards.description
         default: 1
     - information-matches:
         category: traz
@@ -363,6 +366,18 @@ spec:
                 - "2022-11-03"
                 - "2022-11-04"
                 - "2022-12-25"
+                - "2023-01-01" # 2023
+                - "2023-01-02"
+                - "2023-02-20"
+                - "2023-02-21"
+                - "2023-04-07"
+                - "2023-05-01"
+                - "2023-05-26"
+                - "2023-08-11"
+                - "2023-10-09"
+                - "2023-11-02"
+                - "2023-11-03"
+                - "2023-12-25"
             options:
                 - includeSundays: true
         default: 1
@@ -384,6 +399,7 @@ spec:
                 - 2020: 35498420637.02
                 - 2021: 32080363387.48
                 - 2022: 33899734759.85
+                - 2023: 31502865593.76
         default: 1
     - bidders-who-bid-and-dont-win:
         category: comp
@@ -432,7 +448,7 @@ spec:
         description: El nombre del contrato se repite en un 10% de los casos. No aplica si hay diez o menos contratos al año.
         module: yearly-repeated-value
         parameters:
-            field: description.title.keyword
+            field: description.description.keyword
             conditions:
                 - gte: 0.1
                 - min_count: 10

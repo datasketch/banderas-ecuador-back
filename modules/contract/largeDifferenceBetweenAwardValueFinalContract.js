@@ -14,12 +14,20 @@ class LargeDifferenceBetweenAwardValueFinalContractEvaluationModule extends Eval
     }
 
     calculateResult(parameters, result) {
-        let value = parameters.value[0];
-        let referenceValue = parameters.referenceValue[0];
+        let value;
+        if (parameters.value) {
+            value = parameters.value;
+        }
+        let referenceValue;
+        if (parameters.referenceValue) {
+            referenceValue = parameters.referenceValue;
+        }
         let condition = new ConditionEvaluator(parameters.conditions[0]);
+        let awardValues = value.reduce((partialSum, a) => partialSum + a, 0);
+        let refValues = referenceValue.reduce((partialSum, a) => partialSum + a, 0);
 
-        if(value && referenceValue) {
-            let percentDifference = Math.abs(value - referenceValue) / referenceValue * 100;
+        if(awardValues && refValues) {
+            let percentDifference = Math.abs(awardValues - refValues) / refValues * 100;
             if( condition.evaluate(percentDifference) ) result.fail();
             else result.pass();
             result.addResultDetails('percentDifference', percentDifference);

@@ -6,7 +6,9 @@ class LateBidderWinningBidderEvaluationModule extends EvaluationModule {
     static params = ["bids", "winningBid"];
     static params = [
         { name: "bids", type: "query" },
-        { name: "winningBid", type: "query" }
+        { name: "winningBid", type: "query" },
+        { name: "date", type: "query" },
+        { name: "procurementMethod", type: "query" }
     ];
 
     constructor() {
@@ -16,10 +18,16 @@ class LateBidderWinningBidderEvaluationModule extends EvaluationModule {
     calculateResult(parameters, result) {
         let bidDates = parameters.bids;
         let winningBidDate = parameters.winningBid[0];
+        let date = parameters.date[0];
+        let procurementMethod = parameters.procurementMethod[0];
+        let year = 0;
+
         bidDates.sort();
         result.pass();
+        if(date) year = parseInt( date.split('-')[0] );
 
-        if(bidDates[bidDates.length - 1] == winningBidDate) result.fail();
+        if(year > 2015 && procurementMethod && procurementMethod.match(/^Catálogo electrónico.*/)) { result.pass(); }
+        else if(bidDates.length > 0 && bidDates[bidDates.length - 1] == winningBidDate) result.fail();
 
         return result;
     }
